@@ -1,13 +1,24 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User, UserDocument } from './entities/user.entity';
+import { IUser } from './interface/user.interface';
 
 @Injectable()
 export class UserService {
   constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
+
+    async findByemail(email:string): Promise<UserDocument>
+  {
+      const userEmail =await this.userModel.findOne({email}).exec();
+    /*     if (!userEmail)
+          {
+            throw new NotFoundException('No User Email found')
+          }  */
+          return userEmail;
+    }
 
   async create(createUserDto: CreateUserDto): Promise<UserDocument> {
     const createdUser = new this.userModel(createUserDto);
@@ -22,10 +33,6 @@ export class UserService {
     return this.userModel.findById(id);
   }
 
-  async findByUsername(username: string): Promise<UserDocument> {
-    return this.userModel.findOne({ username }).exec();
-  }
-
   async update(
     id: string,
     updateUserDto: UpdateUserDto,
@@ -38,4 +45,5 @@ export class UserService {
   async remove(id: string): Promise<UserDocument> {
     return this.userModel.findByIdAndDelete(id).exec();
   }
+
 }

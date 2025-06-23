@@ -2,8 +2,6 @@ import {
   Body,
   Controller,
   Get,
-  HttpCode,
-  HttpStatus,
   Post,
   Req,
 } from '@nestjs/common';
@@ -11,10 +9,17 @@ import { Request } from 'express';
 import { CreateUserDto } from 'src/users/dto/create-user.dto';
 import { AuthService } from './auth.service';
 import { AuthDto } from './dto/create-auth.dto';
+import { Public } from 'src/decorators/public.decorator';
+
+type JwtPayload = {
+  sub: string;
+  username: string;
+};
 
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
+
 
   @Post('signup')
   signup(@Body() createUserDto: CreateUserDto) {
@@ -28,6 +33,7 @@ export class AuthController {
 
   @Get('logout')
   logout(@Req() req: Request) {
-    this.authService.logout(req.user['sub']);
+    const user = req.user as {userId:string}
+    return this.authService.logout(user.userId);
   }
 }

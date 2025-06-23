@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateUserDto } from 'src/users/dto/create-user.dto';
 import * as argon2 from 'argon2';
 import { JwtService } from '@nestjs/jwt';
@@ -91,5 +91,19 @@ export class AuthService {
       accessToken,
       refreshToken,
     };
+  }
+
+  async forgetPassword(email:string ):Promise<{message:string;status:number}> {
+
+    const user = await this.usersService.findByemail(email)
+    if (!user)
+    {
+      throw new NotFoundException('Aucun utilisateur trouvé avec cet email')
+    }
+
+    // Configuration de SendinBlue
+
+
+    return 
   }
 }

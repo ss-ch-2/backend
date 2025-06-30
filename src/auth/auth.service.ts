@@ -6,6 +6,11 @@ import { UserService } from 'src/users/users.service';
 import { AuthDto } from './dto/create-auth.dto';
 import { IUser } from 'src/users/interface/user.interface';
 import { ConfigService } from '@nestjs/config';
+import * as nodemailer from 'nodemailer'; 
+import { randomBytes } from 'crypto';
+import { User, UserDocument } from 'src/users/entities/user.entity';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 
 @Injectable()
 export class AuthService {
@@ -13,6 +18,7 @@ export class AuthService {
     private usersService: UserService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    @InjectModel(User.name) private userModel: Model<UserDocument>
   ) {}
 
 
@@ -101,9 +107,63 @@ export class AuthService {
       throw new NotFoundException('Aucun utilisateur trouvé avec cet email')
     }
 
-    // Configuration de SendinBlue
+    // Configuration de Nodemailer
+    const token = randomBytes(32).toString('hex')
+    await this.usersService.update(user.id,{resetpasswordtoken:token ,resetpasswordexpires:Date.now()+3600000})
+    const reseturl = `${ this.configService.get(process.env.FRONT_URL)}/restpassword?token=${token}`
 
 
-    return 
+        const transporter = nodemailer.createTransport({
+      host:  this.configService.get(process.env.SMTP_host),
+      port: this.configService.get(process.env.SMTP_port),
+      secure: false, // upgrade later with STARTTLS
+      auth: {
+        user: this.configService.get(process.env.SMTP_USER) ,
+        pass: this.configService.get(process.env.SMTP_PASS),
+      },
+    });
+
+
+   const mailOptions = {
+  from:`'support' <${this.configService.get(process.env.SMTP_USER)}>`,
+  to: user.email,
+ subject:'Rest Password Email ',
+ html:`<p>Bonjour, pour réinitialisé votre mot de passe </p> <br> 
+ Lien : <a href="${reseturl}">   Reset votre mot de passe </a> 
+ <p>Ce lien expire dans 1 heure </p>
+   `
+};
+
+try{
+await transporter.sendMail(mailOptions)
+return {status:200,message : 'Email de réinitialisation envoyé'}
+
+}
+catch(error)
+{
+console.error('error sendmail',error)
+throw new BadRequestException("echec de l'envoi de l'email'")
+}
   }
+
+async resetpassword (token : string, newpassword:string ):Promise<{message:string}>
+{
+
+  const user =  await this.userModel.findOne({resetpasswordtoken : token,resetpasswordexpires:{$gt:Date.now()}})
+
+  if (!user) {
+    throw new BadRequestException('Token invalide ou expiré')
+  }
+
+  const hashed = await argon2.hash(newpassword)
+  user.password = hashed
+  user.resetpasswordtoken = null
+  user.resetpasswordexpires= null
+
+  await user.save()
+
+  return {message:'Reset password avec succès'}
+
+}
+
 }
